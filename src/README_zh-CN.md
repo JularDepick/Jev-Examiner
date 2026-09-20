@@ -16,7 +16,7 @@ src/
 │       ├── auditEngine.js  # 审核引擎: 加权组合与三路分流
 │       ├── httpUtils.js    # HTTP 响应与请求处理工具
 │       └── router.js       # 路由处理
-└── page/                   # 纯 Web 前端静态测试壳
+└── pages/                  # 纯 Web 前端静态测试壳
     ├── index.html          # 测试壳页面
     ├── styles.css          # 页面样式
     └── app.js              # 前端逻辑: 直连 Jev 官方 API
@@ -33,7 +33,7 @@ src/
 | `api/include/auditEngine.js` | 把答案归一化并加权组合为违规综合分,依据分数与置信度输出三路判定 |
 | `api/include/router.js` | 解析路径与方法,分发至各接口处理函数 |
 | `api/include/httpUtils.js` | 读写 JSON 请求体、发送响应、跨域头与密钥提取 |
-| `page/app.js` | 前端状态管理、问题集编辑、直连官方 API 与结果渲染 |
+| `pages/app.js` | 前端状态管理、问题集编辑、直连官方 API 与结果渲染 |
 
 ## 设计要点
 

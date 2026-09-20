@@ -54,9 +54,11 @@ JEV_API_KEY=<你的密钥> npm start
 
 ### 使用前端测试壳
 
-前端为纯静态页面,浏览器直接打开 `src/page/index.html` 即可;也可在 API 服务启动后访问 `http://localhost:8080/` 加载同一页面。
+前端为纯静态页面,浏览器直接打开 `src/pages/index.html` 即可;也可在 API 服务启动后访问 `http://localhost:8080/` 加载同一页面。
 
 在页面中填写 Jev API 密钥与待审内容,点击「开始审核」即可看到判定结果、维度明细与官方原始返回。密钥仅保存在页面运行时的 UI 状态中,不做任何持久化。
+
+前端默认直连 Jev 官方端点。官方端点仅放行白名单来源,浏览器以本地方式打开页面时会因跨域策略被拦截,此时有两种方式:将 API 基地址改为本地服务 `http://localhost:8080/audit` 经其转发;或以禁用跨域检查的方式启动浏览器。改为本地服务后,页面无需与 API 服务同源即可调用。
 
 ### 调用审核接口
 
@@ -71,6 +73,9 @@ curl -X POST http://localhost:8080/audit \
 
 ```
 Jev-Examiner/
+├── .github/                        # GitHub工作流
+│   └── workflows/                  # 工作流配置
+│       └── deploy-src-pages-as-pages.yml # 部署src/pages到Pages
 ├── .gitignore                      # git忽略规则
 ├── COPYRIGHT                       # 版权文件
 ├── LICENSE                         # 许可证文件
@@ -91,7 +96,7 @@ Jev-Examiner/
     │       ├── auditEngine.js      # 审核引擎
     │       ├── httpUtils.js        # HTTP 处理工具
     │       └── router.js           # 路由处理
-    └── page/                       # 纯Web前端静态测试壳
+    └── pages/                      # 纯Web前端静态测试壳
         ├── index.html              # 测试壳页面
         ├── styles.css              # 页面样式
         └── app.js                  # 前端逻辑

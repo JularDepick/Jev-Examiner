@@ -54,9 +54,11 @@ JEV_API_KEY=<your-key> npm start
 
 ### Use the frontend test shell
 
-The frontend is a static page. Open `src/page/index.html` directly in a browser, or visit `http://localhost:8080/` after starting the API server to load the same page.
+The frontend is a static page. Open `src/pages/index.html` directly in a browser, or visit `http://localhost:8080/` after starting the API server to load the same page.
 
 Enter your Jev API key and the content to review, then click "开始审核" to see the verdict, dimension details, and the raw official response. The key lives only in the page's runtime UI state and is never persisted.
+
+The frontend calls the official Jev endpoint directly by default. That endpoint only allows whitelisted origins, so a locally opened page is blocked by the browser's cross-origin policy. Two options: point the API base at the local service `http://localhost:8080/audit` and let it forward the call, or start the browser with cross-origin checks disabled. When forwarding through the local service, the page does not need to share an origin with it.
 
 ### Call the moderation endpoint
 
@@ -71,6 +73,9 @@ curl -X POST http://localhost:8080/audit \
 
 ```
 Jev-Examiner/
+├── .github/                        # GitHub workflows
+│   └── workflows/                  # Workflow configuration
+│       └── deploy-src-pages-as-pages.yml # Deploy src/pages to Pages
 ├── .gitignore                      # git ignore rules
 ├── COPYRIGHT                       # Copyright file
 ├── LICENSE                         # License file
@@ -91,7 +96,7 @@ Jev-Examiner/
     │       ├── auditEngine.js      # Moderation engine
     │       ├── httpUtils.js        # HTTP utilities
     │       └── router.js           # Route handling
-    └── page/                       # Static web test shell
+    └── pages/                      # Static web test shell
         ├── index.html              # Test shell page
         ├── styles.css              # Page styles
         └── app.js                  # Frontend logic
