@@ -19,6 +19,11 @@ node_modules/
 .config.json
 *.local
 
+# TLS Certificates
+*.pem
+*.key
+*.crt
+
 # Version Documents
 v*-*.md
 

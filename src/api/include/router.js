@@ -3,14 +3,14 @@
  * 作者: JularDepick (https://github.com/JularDepick)
  *
  * 提供无鉴权的通用内容审核接口。密钥由调用方在请求中携带,
- * 或由服务端通过环境变量统一配置。
+ * 或由服务端通过环境变量统一配置;两者择一由 keySource 策略决定。
  */
 
 const CONFIG = require('./constants')
 const { auditContent, auditBatch, VERDICT } = require('./auditEngine')
 const { PRESETS } = require('./questionSets')
 const jevClient = require('./jevClient')
-const { sendJson, readJsonBody, extractApiKey } = require('./httpUtils')
+const { sendJson, readJsonBody, extractApiKey, resolveKeySource, isSecureRequest } = require('./httpUtils')
 
 /**
  * 路由表: 路径 -> 处理函数
@@ -22,6 +22,27 @@ const ROUTES = {
   'POST /audit/batch': handleAuditBatch,
   'POST /models': handleModels,
   'POST /raw': handleRaw
+}
+
+/**
+ * 按来源策略解析密钥,缺失时写出错误响应并返回 null
+ */
+function resolveKeyOrFail(req, res, body) {
+  const keySource = resolveKeySource(req, body)
+  const apiKey = extractApiKey(req, body, keySource)
+  if (apiKey) {
+    return { apiKey, keySource }
+  }
+  const fromServer = keySource === 'server'
+  sendJson(res, fromServer ? 500 : 401, {
+    error: {
+      code: fromServer ? 'server_key_missing' : 'missing_api_key',
+      message: fromServer
+        ? '服务端未配置 Jev API 密钥,请设置环境变量 JEV_API_KEY'
+        : '缺少调用方携带的 Jev API 密钥'
+    }
+  })
+  return null
 }
 
 /**
@@ -61,6 +82,9 @@ function handleHealth(req, res) {
     project: CONFIG.PROJECT_NAME,
     author: CONFIG.PROJECT_AUTHOR,
     serverKeyConfigured: Boolean(CONFIG.JEV_API_KEY),
+    keySource: CONFIG.DEFAULT_KEY_SOURCE,
+    requireHttps: CONFIG.REQUIRE_HTTPS,
+    secure: isSecureRequest(req),
     defaultModel: CONFIG.JEV_DEFAULT_MODEL,
     upstream: CONFIG.JEV_API_BASE_URL + CONFIG.JEV_API_PATH,
     presets: Object.keys(PRESETS),
@@ -93,6 +117,7 @@ function handlePresets(req, res) {
  *   thresholds?: object,          自定义阈值
  *   model?: string,               模型标识
  *   apiKey?: string,              调用方自带密钥
+ *   keySource?: string,           密钥来源策略 auto | client | server
  *   includeAnswers?: boolean      是否回传官方原始答案
  * }
  */
@@ -105,7 +130,10 @@ async function handleAudit(req, res) {
     })
   }
 
-  const apiKey = extractApiKey(req, body) || CONFIG.JEV_API_KEY
+  const key = resolveKeyOrFail(req, res, body)
+  if (!key) {
+    return
+  }
   const result = await auditContent({
     content,
     preset: body.preset,
@@ -113,7 +141,7 @@ async function handleAudit(req, res) {
     weights: body.weights,
     thresholds: body.thresholds,
     model: body.model,
-    apiKey
+    apiKey: key.apiKey
   })
 
   sendJson(res, 200, formatResult(result, body.includeAnswers !== false))
@@ -125,14 +153,23 @@ async function handleAudit(req, res) {
 async function handleAuditBatch(req, res) {
   const body = await readJsonBody(req)
   const items = body.items
-  const apiKey = extractApiKey(req, body) || CONFIG.JEV_API_KEY
+  if (!Array.isArray(items) || items.length === 0) {
+    return sendJson(res, 400, {
+      error: { code: 'missing_items', message: '缺少必填字段 items,且必须为非空数组' }
+    })
+  }
+
+  const key = resolveKeyOrFail(req, res, body)
+  if (!key) {
+    return
+  }
   const results = await auditBatch(items, {
     preset: body.preset,
     questions: body.questions,
     weights: body.weights,
     thresholds: body.thresholds,
     model: body.model,
-    apiKey
+    apiKey: key.apiKey
   })
 
   const formatted = results.map((entry) => {
@@ -159,8 +196,11 @@ async function handleAuditBatch(req, res) {
  */
 async function handleModels(req, res) {
   const body = await readJsonBody(req)
-  const apiKey = extractApiKey(req, body) || CONFIG.JEV_API_KEY
-  const data = await jevClient.listModels(apiKey)
+  const key = resolveKeyOrFail(req, res, body)
+  if (!key) {
+    return
+  }
+  const data = await jevClient.listModels(key.apiKey)
   sendJson(res, 200, data)
 }
 
@@ -170,12 +210,15 @@ async function handleModels(req, res) {
  */
 async function handleRaw(req, res) {
   const body = await readJsonBody(req)
-  const apiKey = extractApiKey(req, body) || CONFIG.JEV_API_KEY
+  const key = resolveKeyOrFail(req, res, body)
+  if (!key) {
+    return
+  }
   const data = await jevClient.evaluate({
     state: body.state,
     questions: body.questions,
     model: body.model,
-    apiKey
+    apiKey: key.apiKey
   })
   sendJson(res, 200, data)
 }

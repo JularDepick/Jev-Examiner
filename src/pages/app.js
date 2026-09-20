@@ -14,7 +14,23 @@
   var PROJECT_AUTHOR_URL = 'https://github.com/JularDepick'
 
   // 直连官方 API 失败时的指引文本
-  var DIRECT_CALL_HINT = '请求未能送达。浏览器对跨域失败统一报错,无法与网络故障区分。若页面以 file:// 打开或托管在非白名单域名下,浏览器跨域策略会拦截该请求,官方 API 仅放行白名单来源。可将 API 基地址改为本地服务 http://localhost:8080/audit,或以禁用跨域检查的方式启动浏览器。'
+  var DIRECT_CALL_HINT = '请求未能送达。浏览器对跨域失败统一报错,无法与网络故障区分。若页面以 file:// 打开或托管在非白名单域名下,浏览器跨域策略会拦截该请求,官方 API 仅放行白名单来源。可点击「用本地服务」切换到本地审核服务转发,或以禁用跨域检查的方式启动浏览器。'
+
+  // 本地服务连接失败时的指引文本
+  var LOCAL_SERVICE_HINT = '请确认本地审核服务已启动,且地址与协议一致(默认 https://localhost:8080/audit)。若服务使用自签名证书,浏览器会以「隐私设置错误」或连接被拒的形式拦截请求,需先在浏览器中打开该地址并选择继续访问以信任证书。'
+
+  // 可切换的两个端点,本地服务固定使用 https 以免密钥明文传输
+  var ENDPOINTS = {
+    official: 'https://api.typesafe.ai/v1/systemone',
+    local: 'https://localhost:8080/audit'
+  }
+
+  // 密钥来源策略的可选值,与后端保持一致
+  var KEY_SOURCE_LABELS = {
+    auto: '自动(调用方优先)',
+    client: '仅用前端携带',
+    server: '仅用服务端常量'
+  }
 
   // 问题集预设,与后端内置规则保持同构
   var PRESETS = {
@@ -208,18 +224,20 @@
     bindEvents()
     loadPreset('general')
     updateCharCount()
+    updateEndpointButton()
     applyAuthor()
+    probeLocalService()
   }
 
   function cacheElements() {
     var ids = [
-      'apiKey', 'apiBase', 'model', 'preset', 'thBlock', 'thReview', 'thConf',
+      'apiKey', 'apiBase', 'keySource', 'model', 'preset', 'thBlock', 'thReview', 'thConf',
       'questions', 'weights', 'content', 'charCount', 'runAudit', 'runRaw',
       'loadSample', 'clearText', 'loadPreset', 'formatJson', 'toggleKey',
       'verdictEmpty', 'verdict', 'verdictBadge', 'scoreValue', 'confValue',
       'categoryValue', 'modelValue', 'usageValue', 'scoreBar', 'tagRow',
       'dimensionsBox', 'dimensionsBody', 'rawBox', 'rawOutput', 'copyRaw',
-      'latency', 'openDocs', 'toastStack', 'modeBadge'
+      'latency', 'openDocs', 'toastStack', 'modeBadge', 'toggleEndpoint'
     ]
     ids.forEach(function (id) {
       el[id] = document.getElementById(id)
@@ -228,6 +246,9 @@
 
   function bindEvents() {
     el.toggleKey.addEventListener('click', toggleKeyVisibility)
+    el.toggleEndpoint.addEventListener('click', toggleEndpoint)
+    el.apiBase.addEventListener('input', updateEndpointButton)
+    el.keySource.addEventListener('change', updateKeyPlaceholder)
     el.loadPreset.addEventListener('click', function () {
       loadPreset(el.preset.value)
     })
@@ -305,6 +326,62 @@
   }
 
   /**
+   * 判断端点是否指向 Jev 官方
+   */
+  function isOfficialEndpoint(value) {
+    return String(value || '').indexOf('typesafe.ai') !== -1
+  }
+
+  /**
+   * 在官方端点与本地服务之间切换
+   */
+  function toggleEndpoint() {
+    var toOfficial = !isOfficialEndpoint(el.apiBase.value)
+    el.apiBase.value = toOfficial ? ENDPOINTS.official : ENDPOINTS.local
+    updateEndpointButton()
+    toast('info', '已切换端点', toOfficial ? '直连 Jev 官方端点' : '经本地审核服务转发')
+  }
+
+  /**
+   * 同步切换按钮与模式徽标的文案
+   */
+  function updateEndpointButton() {
+    var official = isOfficialEndpoint(el.apiBase.value)
+    el.toggleEndpoint.textContent = official ? '用本地服务' : '用官方端点'
+    el.modeBadge.textContent = official ? '直连官方 API' : '经本地服务转发'
+    updateKeyPlaceholder()
+  }
+
+  /**
+   * 密钥来源为服务端常量时,前端无需填写密钥
+   */
+  function updateKeyPlaceholder() {
+    var serverOnly = !isOfficialEndpoint(el.apiBase.value) &&
+      el.keySource && el.keySource.value === 'server'
+    el.apiKey.placeholder = serverOnly
+      ? '密钥来源为服务端常量,此处可留空'
+      : '粘贴你的 TypeSafe API 密钥'
+  }
+
+  /**
+   * 页面以 file:// 打开时,探测本地审核服务是否可用
+   */
+  function probeLocalService() {
+    if (location.protocol !== 'file:') {
+      return
+    }
+    fetch(ENDPOINTS.local.replace('/audit', '/health'), { method: 'GET' })
+      .then(function (res) {
+        if (res.ok && isOfficialEndpoint(el.apiBase.value)) {
+          toast('info', '检测到本地审核服务', '当前为直连官方端点,若被跨域拦截,可点击「用本地服务」切换')
+        }
+      })
+      .catch(function () {
+        // 本地服务未启动,无需提示
+      })
+  }
+
+  /**
    * 格式化 JSON 输入框
    */
   function formatJsonFields() {
@@ -328,15 +405,27 @@
     var apiKey = el.apiKey.value.trim()
     var content = el.content.value.trim()
     var apiBase = el.apiBase.value.trim()
+    var keySource = el.keySource ? el.keySource.value : 'auto'
+    // 走本地服务且来源指定为服务端常量时,前端无需持有密钥
+    var serverKeyOnly = !isOfficialEndpoint(apiBase) && keySource === 'server'
 
-    if (!apiKey) {
-      throw makeError('缺少 API 密钥', '请先填写 Jev API 密钥')
-    }
     if (!content) {
       throw makeError('缺少内容', '请先填写需要审核的文本')
     }
     if (!apiBase) {
       throw makeError('缺少 API 地址', '请先填写 API 基地址')
+    }
+    if (!apiKey && !serverKeyOnly) {
+      throw makeError('缺少 API 密钥', keySource === 'client'
+        ? '密钥来源为「仅用前端携带」,必须填写 Jev API 密钥'
+        : '请先填写 Jev API 密钥,或将密钥来源改为「仅用服务端常量」')
+    }
+    // 密钥随明文请求传输即视为泄漏,本地服务一律要求 https
+    if (isLocalService(apiBase) && apiBase.indexOf('https://') !== 0) {
+      throw makeError(
+        '本地服务必须使用 HTTPS',
+        '当前地址为明文 http,API 密钥会在传输中暴露。请改用 https://localhost:8080/audit,并在浏览器中先信任本地服务的自签名证书。'
+      )
     }
 
     var questions
@@ -362,6 +451,7 @@
       apiKey: apiKey,
       content: content,
       apiBase: apiBase,
+      keySource: keySource,
       model: el.model.value.trim() || 'jev-latest',
       questions: questions,
       weights: weights,
@@ -465,6 +555,7 @@
 
   /**
    * 调用本地审核服务
+   * 服务端自签名证书未受信任时,浏览器会直接拒绝连接,与网络故障表现相同
    */
   async function callLocalService(form) {
     var payload = {
@@ -472,16 +563,27 @@
       model: form.model,
       questions: form.questions,
       weights: form.weights,
-      thresholds: form.thresholds
+      thresholds: form.thresholds,
+      keySource: form.keySource
     }
-    var response = await fetch(form.apiBase, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-Jev-Api-Key': form.apiKey
-      },
-      body: JSON.stringify(payload)
-    })
+    var headers = {
+      'Content-Type': 'application/json',
+      'X-Jev-Key-Source': form.keySource
+    }
+    if (form.apiKey) {
+      headers['X-Jev-Api-Key'] = form.apiKey
+    }
+
+    var response
+    try {
+      response = await fetch(form.apiBase, {
+        method: 'POST',
+        headers: headers,
+        body: JSON.stringify(payload)
+      })
+    } catch (err) {
+      throw makeError('无法连接本地审核服务', LOCAL_SERVICE_HINT)
+    }
     return handleResponse(response)
   }
 

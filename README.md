@@ -28,6 +28,8 @@ Jev is TypeSafe's first System One model. It does not generate text; it returns 
 | Custom question sets | Callers can supply their own question sets and weight tables to fully override a preset |
 | Batch moderation | Submits multiple items concurrently and returns both a summary and per-item results |
 | No-auth API | The API server performs no caller authentication; keys are supplied by the caller or configured server-side |
+| Selectable key source | Each call can specify whether the key comes from the caller or a server-side constant, with caller-first fallback |
+| Encrypted transport | Can listen over HTTPS and reject unencrypted requests, keeping keys off plaintext channels |
 | Direct official API access | The frontend shell can call Jev's official endpoint directly with a key, independent of the backend |
 | Visual test shell | A static test page with question-set editing, preset switching, dimension details, and raw responses |
 
@@ -52,13 +54,34 @@ To configure a key server-side, set the environment variable before starting:
 JEV_API_KEY=<your-key> npm start
 ```
 
+### Enable HTTPS
+
+API keys travel with requests, so plaintext channels carry a leak risk. Provide both a certificate and a private key path to listen over HTTPS:
+
+```
+HTTPS_KEY_PATH=./key.pem HTTPS_CERT_PATH=./cert.pem npm start
+```
+
+Set `REQUIRE_HTTPS=true` on top of that and the server rejects every unencrypted request, loopback included. When a reverse proxy terminates TLS, the server relies on `X-Forwarded-Proto`; make sure the service is not directly exposed in that setup.
+
+### Choose the key source
+
+Callers may specify the key source per request as `auto`, `client`, or `server`, meaning caller-first with server fallback, caller only, and server only. When omitted, the server default applies (environment variable `KEY_SOURCE`).
+
+```
+curl -X POST http://localhost:8080/audit \
+  -H "Content-Type: application/json" \
+  -H "X-Jev-Key-Source: server" \
+  -d '{"content":"Content to review"}'
+```
+
 ### Use the frontend test shell
 
 The frontend is a static page. Open `src/pages/index.html` directly in a browser, or visit `http://localhost:8080/` after starting the API server to load the same page.
 
 Enter your Jev API key and the content to review, then click "开始审核" to see the verdict, dimension details, and the raw official response. The key lives only in the page's runtime UI state and is never persisted.
 
-The frontend calls the official Jev endpoint directly by default. That endpoint only allows whitelisted origins, so a locally opened page is blocked by the browser's cross-origin policy. Two options: point the API base at the local service `http://localhost:8080/audit` and let it forward the call, or start the browser with cross-origin checks disabled. When forwarding through the local service, the page does not need to share an origin with it.
+The frontend calls the official Jev endpoint directly by default. That endpoint only allows whitelisted origins, so a locally opened page is blocked by the browser's cross-origin policy. Point the API base at the local service `https://localhost:8080/audit` and let it forward the call instead. The local service always uses HTTPS, so trust its self-signed certificate in the browser first.
 
 ### Call the moderation endpoint
 

@@ -20,12 +20,23 @@ const JEV_MODELS_PATH = '/v1/models'
 // 使用别名可自动跟进官方最新稳定版,响应 model 字段会回传实际版本号
 const JEV_DEFAULT_MODEL = process.env.JEV_MODEL || 'jev-latest'
 
-// API 密钥读取顺序: 环境变量优先,便于服务端部署时不落盘
+// 服务端持有的 Jev API 密钥,便于部署时不落盘
 const JEV_API_KEY = process.env.JEV_API_KEY || process.env.TYPESAFE_API_KEY || ''
+
+// 密钥来源策略:
+// auto 为调用方优先并回退服务端,client 为仅用调用方,server 为仅用服务端
+const DEFAULT_KEY_SOURCE = process.env.KEY_SOURCE || 'auto'
 
 // 服务监听地址与端口
 const HOST = process.env.HOST || 'localhost'
 const PORT = Number(process.env.PORT || 8080)
+
+// HTTPS 监听,同时配置证书与私钥路径后启用;生产环境通常由反向代理终止 TLS
+const HTTPS_KEY_PATH = process.env.HTTPS_KEY_PATH || ''
+const HTTPS_CERT_PATH = process.env.HTTPS_CERT_PATH || ''
+
+// 强制 HTTPS: 开启后拒绝非 HTTPS 且非回环来源的请求
+const REQUIRE_HTTPS = process.env.REQUIRE_HTTPS === 'true'
 
 // 上游请求超时与重试
 const UPSTREAM_TIMEOUT_MS = Number(process.env.UPSTREAM_TIMEOUT_MS || 30000)
@@ -59,8 +70,12 @@ module.exports = {
   JEV_MODELS_PATH,
   JEV_DEFAULT_MODEL,
   JEV_API_KEY,
+  DEFAULT_KEY_SOURCE,
   HOST,
   PORT,
+  HTTPS_KEY_PATH,
+  HTTPS_CERT_PATH,
+  REQUIRE_HTTPS,
   UPSTREAM_TIMEOUT_MS,
   UPSTREAM_MAX_RETRY,
   UPSTREAM_RETRY_BASE_MS,

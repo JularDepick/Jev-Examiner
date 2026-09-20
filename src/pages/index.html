@@ -42,11 +42,18 @@
 
     <div class="field">
       <label for="apiBase">API 基地址</label>
-      <input id="apiBase" type="text" value="https://api.typesafe.ai/v1/systemone" spellcheck="false">
-      <p class="hint">默认指向 Jev 官方端点。官方仅放行白名单来源,以 <code>file://</code> 直接打开页面时浏览器会拦截跨域请求;此时可改为本地服务 <code>http://localhost:8080/audit</code> 经其转发。</p>
+      <div class="input-row">
+        <input id="apiBase" type="text" value="https://api.typesafe.ai/v1/systemone" spellcheck="false">
+        <button class="btn btn-ghost btn-sm" id="toggleEndpoint" type="button">用本地服务</button>
+      </div>
+      <p class="hint">
+        默认直连 Jev 官方端点。官方仅放行白名单来源,以 <code>file://</code> 打开页面时会被浏览器拦截跨域请求;
+        此时点击「用本地服务」切换到 <code>https://localhost:8080/audit</code> 经其转发。
+        本地服务一律走 HTTPS,首次使用需先在浏览器中打开该地址并信任其自签名证书。
+      </p>
     </div>
 
-    <div class="field-row">
+    <div class="field-row three">
       <div class="field">
         <label for="model">模型</label>
         <input id="model" type="text" value="jev-latest" spellcheck="false">
@@ -57,6 +64,14 @@
           <option value="general">通用内容审核</option>
           <option value="campus">校园互助平台</option>
           <option value="custom">自定义</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="keySource">密钥来源</label>
+        <select id="keySource">
+          <option value="auto">自动(调用方优先)</option>
+          <option value="client">仅用前端携带</option>
+          <option value="server">仅用服务端常量</option>
         </select>
       </div>
     </div>
