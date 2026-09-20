@@ -1,0 +1,21 @@
+{
+  "name": "jev-examiner-api",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Jev-Examiner 通用型 AI 内容审核 API 服务,基于 Jev System One 模型",
+  "main": "app.js",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "start": "node app.js"
+  },
+  "keywords": [
+    "jev",
+    "typesafe",
+    "content-moderation",
+    "ai-audit"
+  ],
+  "author": "JularDepick (https://github.com/JularDepick)",
+  "license": "Apache-2.0"
+}

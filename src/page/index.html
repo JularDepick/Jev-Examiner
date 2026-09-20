@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Jev-Examiner 测试壳</title>
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+
+<header class="topbar">
+  <div class="brand">
+    <span class="brand-mark">JE</span>
+    <div class="brand-text">
+      <strong>Jev-Examiner</strong>
+      <span>由 Jev 驱动的 AI 内容审核测试壳</span>
+    </div>
+  </div>
+  <div class="topbar-actions">
+    <span class="mode-badge" id="modeBadge">直连官方 API</span>
+    <button class="btn btn-ghost" id="openDocs" type="button">开发文档</button>
+  </div>
+</header>
+
+<main class="layout">
+
+  <section class="panel panel-config">
+    <div class="panel-head">
+      <h2>接入配置</h2>
+      <button class="btn btn-ghost btn-sm" id="toggleKey" type="button">显示密钥</button>
+    </div>
+
+    <div class="field">
+      <label for="apiKey">Jev API 密钥</label>
+      <input id="apiKey" type="password" placeholder="粘贴你的 TypeSafe API 密钥" spellcheck="false" autocomplete="off">
+      <p class="hint">
+        密钥仅保存在当前页面的 UI 状态中,刷新即失效,不会写入任何存储。
+        获取密钥 <a href="https://console.typesafe.ai/keys" target="_blank" rel="noopener">console.typesafe.ai/keys</a>
+      </p>
+    </div>
+
+    <div class="field">
+      <label for="apiBase">API 基地址</label>
+      <input id="apiBase" type="text" value="https://api.typesafe.ai/v1/systemone" spellcheck="false">
+      <p class="hint">默认指向 Jev 官方端点。若需经本地审核服务转发,可改为 <code>http://localhost:8080/audit</code></p>
+    </div>
+
+    <div class="field-row">
+      <div class="field">
+        <label for="model">模型</label>
+        <input id="model" type="text" value="jev-latest" spellcheck="false">
+      </div>
+      <div class="field">
+        <label for="preset">审核规则预设</label>
+        <select id="preset">
+          <option value="general">通用内容审核</option>
+          <option value="campus">校园互助平台</option>
+          <option value="custom">自定义</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="field-row three">
+      <div class="field">
+        <label for="thBlock">拦截阈值</label>
+        <input id="thBlock" type="number" min="0" max="1" step="0.05" value="0.70">
+      </div>
+      <div class="field">
+        <label for="thReview">复审阈值</label>
+        <input id="thReview" type="number" min="0" max="1" step="0.05" value="0.35">
+      </div>
+      <div class="field">
+        <label for="thConf">置信度下限</label>
+        <input id="thConf" type="number" min="0" max="1" step="0.05" value="0.55">
+      </div>
+    </div>
+
+    <div class="panel-head panel-head-sub">
+      <h3>问题集与权重</h3>
+      <div class="head-tools">
+        <button class="btn btn-ghost btn-sm" id="loadPreset" type="button">载入预设</button>
+        <button class="btn btn-ghost btn-sm" id="formatJson" type="button">格式化</button>
+      </div>
+    </div>
+
+    <div class="field">
+      <label for="questions">原子问题集(JSON)</label>
+      <textarea id="questions" spellcheck="false" rows="10"></textarea>
+    </div>
+
+    <div class="field">
+      <label for="weights">权重表(JSON)</label>
+      <textarea id="weights" spellcheck="false" rows="6"></textarea>
+      <p class="hint">权重会自动归一化。类别维度不参与加权,仅用于输出分类标签。</p>
+    </div>
+  </section>
+
+  <section class="panel panel-run">
+    <div class="panel-head">
+      <h2>待审内容</h2>
+      <div class="head-tools">
+        <button class="btn btn-ghost btn-sm" id="loadSample" type="button">载入样例</button>
+        <button class="btn btn-ghost btn-sm" id="clearText" type="button">清空</button>
+      </div>
+    </div>
+
+    <div class="field">
+      <label for="content">内容文本</label>
+      <textarea id="content" rows="9" placeholder="粘贴需要审核的文本内容,例如一条帖子、一条评论或一段客服工单"></textarea>
+      <div class="char-count"><span id="charCount">0</span> / 32000 字符</div>
+    </div>
+
+    <div class="actions">
+      <button class="btn btn-primary" id="runAudit" type="button">开始审核</button>
+      <button class="btn btn-ghost" id="runRaw" type="button">原始返回</button>
+    </div>
+
+    <div class="samples">
+      <span class="samples-label">样例:</span>
+      <button class="chip" type="button" data-sample="normal">正常互助</button>
+      <button class="chip" type="button" data-sample="academic">代课违规</button>
+      <button class="chip" type="button" data-sample="spam">引流广告</button>
+      <button class="chip" type="button" data-sample="attack">人身攻击</button>
+      <button class="chip" type="button" data-sample="ambiguous">边界模糊</button>
+    </div>
+  </section>
+
+  <section class="panel panel-result">
+    <div class="panel-head">
+      <h2>审核结果</h2>
+      <span class="latency" id="latency"></span>
+    </div>
+
+    <div class="verdict-empty" id="verdictEmpty">
+      <p>尚未执行审核。填写密钥与内容后点击「开始审核」。</p>
+    </div>
+
+    <div class="verdict" id="verdict" hidden>
+      <div class="verdict-badge" id="verdictBadge">--</div>
+      <div class="verdict-meta">
+        <div class="meta-item">
+          <span class="meta-label">违规综合分</span>
+          <strong id="scoreValue">--</strong>
+        </div>
+        <div class="meta-item">
+          <span class="meta-label">最低置信度</span>
+          <strong id="confValue">--</strong>
+        </div>
+        <div class="meta-item">
+          <span class="meta-label">命中类别</span>
+          <strong id="categoryValue">--</strong>
+        </div>
+        <div class="meta-item">
+          <span class="meta-label">响应模型</span>
+          <strong id="modelValue">--</strong>
+        </div>
+        <div class="meta-item">
+          <span class="meta-label">Token 用量</span>
+          <strong id="usageValue">--</strong>
+        </div>
+      </div>
+      <div class="score-bar"><span id="scoreBar"></span></div>
+      <div class="tag-row" id="tagRow"></div>
+    </div>
+
+    <div class="subsection" id="dimensionsBox" hidden>
+      <h3>维度明细</h3>
+      <table class="data-table">
+        <thead>
+          <tr><th>问题 ID</th><th>类型</th><th>归一化值</th><th>置信度</th><th>权重</th></tr>
+        </thead>
+        <tbody id="dimensionsBody"></tbody>
+      </table>
+    </div>
+
+    <div class="subsection" id="rawBox" hidden>
+      <div class="panel-head panel-head-sub">
+        <h3>官方原始返回</h3>
+        <button class="btn btn-ghost btn-sm" id="copyRaw" type="button">复制</button>
+      </div>
+      <pre class="code-block" id="rawOutput"></pre>
+    </div>
+  </section>
+
+</main>
+
+<footer class="footer">
+  <span>Jev-Examiner · 作者 <a href="https://github.com/JularDepick" target="_blank" rel="noopener">JularDepick</a></span>
+  <span class="footer-note">密钥仅存于页面内存,请勿在公共环境使用生产密钥</span>
+</footer>
+
+<div class="toast-stack" id="toastStack"></div>
+
+<script src="./app.js"></script>
+</body>
+</html>

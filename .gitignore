@@ -1,3 +1,36 @@
 # Agent Runtime
 .workbuddy/
+.workbuddy-ai/
+.agent*/
+.skill*/
 AGENTS.md
+
+# Temporary Directories
+temp/
+tmp/
+
+# Dependencies
+node_modules/
+
+# Environment And Secrets
+.env
+.env.*
+!.env.example
+.config.json
+*.local
+
+# Version Documents
+v*-*.md
+
+# Build Artifacts
+dist/
+build/
+*.log
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
