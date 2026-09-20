@@ -13,6 +13,9 @@
   var PROJECT_AUTHOR = 'JularDepick'
   var PROJECT_AUTHOR_URL = 'https://github.com/JularDepick'
 
+  // 直连官方 API 失败时的指引文本
+  var DIRECT_CALL_HINT = '请求未能送达。浏览器对跨域失败统一报错,无法与网络故障区分。若页面以 file:// 打开或托管在非白名单域名下,浏览器跨域策略会拦截该请求,官方 API 仅放行白名单来源。可将 API 基地址改为本地服务 http://localhost:8080/audit,或以禁用跨域检查的方式启动浏览器。'
+
   // 问题集预设,与后端内置规则保持同构
   var PRESETS = {
     general: {
@@ -436,6 +439,7 @@
 
   /**
    * 直连 Jev 官方 API
+   * 跨域被拦截与网络故障都会抛出同一种 TypeError,因此统一给出排查指引
    */
   async function callOfficialApi(form) {
     var payload = {
@@ -443,14 +447,19 @@
       model: form.model,
       questions: form.questions
     }
-    var response = await fetch(form.apiBase, {
-      method: 'POST',
-      headers: {
-        'Authorization': 'Bearer ' + form.apiKey,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify(payload)
-    })
+    var response
+    try {
+      response = await fetch(form.apiBase, {
+        method: 'POST',
+        headers: {
+          'Authorization': 'Bearer ' + form.apiKey,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(payload)
+      })
+    } catch (err) {
+      throw makeError('无法直连 Jev 官方 API', DIRECT_CALL_HINT)
+    }
     return handleResponse(response)
   }
 

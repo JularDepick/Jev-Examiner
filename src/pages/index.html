@@ -43,7 +43,7 @@
     <div class="field">
       <label for="apiBase">API 基地址</label>
       <input id="apiBase" type="text" value="https://api.typesafe.ai/v1/systemone" spellcheck="false">
-      <p class="hint">默认指向 Jev 官方端点。若需经本地审核服务转发,可改为 <code>http://localhost:8080/audit</code></p>
+      <p class="hint">默认指向 Jev 官方端点。官方仅放行白名单来源,以 <code>file://</code> 直接打开页面时浏览器会拦截跨域请求;此时可改为本地服务 <code>http://localhost:8080/audit</code> 经其转发。</p>
     </div>
 
     <div class="field-row">

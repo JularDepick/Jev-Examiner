@@ -47,8 +47,8 @@ const DEFAULT_THRESHOLDS = {
 }
 
 // 静态前端目录,供 API 服务可选托管
-// __dirname 指向 src/api/include,向上两级到达 src,再进入 page
-const WEB_ROOT = path.resolve(__dirname, '..', '..', 'page')
+// __dirname 指向 src/api/include,向上两级到达 src,再进入 pages
+const WEB_ROOT = path.resolve(__dirname, '..', '..', 'pages')
 
 module.exports = {
   PROJECT_NAME,
